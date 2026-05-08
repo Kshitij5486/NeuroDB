@@ -1,0 +1,13 @@
+psycopg2-binary
+pglast==6.2
+gymnasium
+stable-baselines3
+torch==2.7.0
+numpy
+pandas
+fastapi
+uvicorn
+matplotlib
+python-dotenv
+tensorboard
+prometheus-client
