@@ -1,6 +1,6 @@
 """
 neurodb_env.py
-NeuroDB - Day 2
+NeuroDB - Day 2 (updated Day 3)
 Full Gymnasium RL environment for query optimization.
 """
 
@@ -97,7 +97,7 @@ class NeuroDB(gym.Env):
     def __init__(self, render_mode=None):
         super().__init__()
 
-        self.max_actions = 6  # max permutations for 3-table join
+        self.max_actions = 6
 
         self.observation_space = spaces.Box(
             low=0.0, high=1.0,
@@ -137,18 +137,36 @@ class NeuroDB(gym.Env):
         action       = int(action) % len(perms)
         chosen_order = list(perms[action])
 
+        # ── run 3x and take median to reduce OS noise ──────────────────
         hint = self.executor.build_hint(chosen_order)
         try:
-            agent_ms = self.executor.run_with_explain(q["sql"], hint)
+            agent_runs = []
+            for _ in range(3):
+                agent_runs.append(
+                    self.executor.run_with_explain(q["sql"], hint)
+                )
+            agent_ms = float(sorted(agent_runs)[1])
         except RuntimeError:
             agent_ms = 9999.0
 
         try:
-            default_ms = self.executor.run_default(q["sql"])
+            default_runs = []
+            for _ in range(3):
+                default_runs.append(
+                    self.executor.run_default(q["sql"])
+                )
+            default_ms = float(sorted(default_runs)[1])
         except RuntimeError:
             default_ms = agent_ms
 
-        reward = -math.log(max(agent_ms, 0.01))
+        # ── shaped reward ───────────────────────────────────────────────
+        base_reward = -math.log(max(agent_ms, 0.01))
+        if agent_ms < default_ms:
+            improvement = (default_ms - agent_ms) / default_ms
+            reward = base_reward + improvement * 2.0
+        else:
+            penalty = (agent_ms - default_ms) / default_ms
+            reward = base_reward - penalty * 2.0
 
         self.history.append({
             "episode"    : self._episode_count,
@@ -178,8 +196,8 @@ class NeuroDB(gym.Env):
         if not self.history:
             print("No history yet.")
             return
-        recent = self.history[-last_n:]
-        wins   = sum(1 for h in recent if h["agent_wins"])
+        recent  = self.history[-last_n:]
+        wins    = sum(1 for h in recent if h["agent_wins"])
         avg_imp = sum(
             (h["default_ms"] - h["agent_ms"]) / h["default_ms"] * 100
             for h in recent
