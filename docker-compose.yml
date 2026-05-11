@@ -1,0 +1,45 @@
+services:
+
+  postgres:
+    image: postgres:16
+    container_name: neurodb-postgres
+    environment:
+      POSTGRES_USER:     postgres
+      POSTGRES_PASSWORD: postgres123
+      POSTGRES_DB:       tpch
+    ports:
+      - "5433:5432"
+    volumes:
+      - neurodb-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d tpch"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    restart: unless-stopped
+
+  neurodb:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: neurodb-api
+    ports:
+      - "8000:8000"
+    environment:
+      PG_HOST:     postgres
+      PG_PORT:     5432
+      PG_DB:       tpch
+      PG_USER:     postgres
+      PG_PASSWORD: postgres123
+    volumes:
+      - ./models:/app/models
+      - ./runs:/app/runs
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  neurodb-pgdata:
+    driver: local

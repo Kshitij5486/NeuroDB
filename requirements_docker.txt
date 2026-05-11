@@ -1,0 +1,13 @@
+psycopg2-binary
+pglast
+gymnasium
+stable-baselines3
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.7.0+cpu
+numpy
+pandas
+fastapi
+uvicorn
+matplotlib
+python-dotenv
+prometheus-client
